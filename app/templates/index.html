@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glockholm AI - Multi-Agent Tutor System</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .response-container {
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background-color: white;
+            display: none;
+        }
+        .subject-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 0.9em;
+            margin-bottom: 16px;
+            font-weight: 500;
+        }
+        .math-badge { 
+            background-color: #e3f2fd; 
+            color: #1976d2;
+        }
+        .physics-badge { 
+            background-color: #f3e5f5; 
+            color: #7b1fa2;
+        }
+        .chemistry-badge { 
+            background-color: #e8f5e9; 
+            color: #2e7d32;
+        }
+        .error-badge { 
+            background-color: #fee2e2; 
+            color: #dc2626;
+        }
+        .tool-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            background-color: #f0f9ff;
+            color: #0369a1;
+            margin: 8px 0;
+        }
+        .tool-badge i {
+            font-size: 1.1em;
+        }
+        .tool-result {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            margin: 8px 0;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+        .collapsible-section {
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            margin: 12px 0;
+            overflow: hidden;
+        }
+        .collapsible-header {
+            padding: 12px 16px;
+            background-color: #f9fafb;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            user-select: none;
+        }
+        .collapsible-header:hover {
+            background-color: #f3f4f6;
+        }
+        .collapsible-content {
+            padding: 16px;
+            display: none;
+            border-top: 1px solid #e5e7eb;
+        }
+        .collapsible-content.active {
+            display: block;
+        }
+        .chevron {
+            transition: transform 0.2s;
+        }
+        .chevron.active {
+            transform: rotate(180deg);
+        }
+        .math-content {
+            font-family: 'KaTeX_Math', 'Times New Roman', serif;
+        }
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            background-color: #e3f2fd;
+            color: #1976d2;
+            border-radius: 50%;
+            font-size: 0.9em;
+            margin-right: 8px;
+        }
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #666;
+        }
+        .loading::after {
+            content: '';
+            width: 20px;
+            height: 20px;
+            margin-left: 10px;
+            border: 2px solid #666;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .retry-button {
+            background-color: #dc2626;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .retry-button:hover {
+            background-color: #b91c1c;
+        }
+        .question-text {
+            font-weight: 500;
+            color: #1f2937;
+            margin-bottom: 16px;
+            font-size: 1.1em;
+        }
+        .answer-content {
+            line-height: 1.6;
+            color: #374151;
+        }
+        .answer-content p {
+            margin-bottom: 12px;
+        }
+        .answer-content h3, .answer-content h4 {
+            color: #1f2937;
+            margin: 16px 0 8px 0;
+        }
+        .answer-content ul, .answer-content ol {
+            margin: 8px 0;
+            padding-left: 24px;
+        }
+        .answer-content li {
+            margin: 4px 0;
+        }
+        .constant-display {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 12px;
+            background-color: #f8fafc;
+            border-radius: 6px;
+        }
+        .constant-symbol {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #1e40af;¬¬¬
+            font-family: 'KaTeX_Math', 'Times New Roman', serif;
+        }
+        .constant-value {
+            font-size: 1.2em;
+            color: #0369a1;
+            font-family: 'KaTeX_Math', 'Times New Roman', serif;
+        }
+        .constant-description {
+            color: #4b5563;
+            font-style: italic;
+        }
+        .calculation-display {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'KaTeX_Math', 'Times New Roman', serif;
+            font-size: 1.1em;
+        }
+        .calculation-expression {
+            color: #1e40af;
+        }
+        .calculation-result {
+            color: #0369a1;
+            font-weight: 500;
+        }
+        .step {
+            display: flex;
+            align-items: flex-start;
+            margin: 16px 0;
+            padding: 12px;
+            background-color: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 28px;
+            height: 28px;
+            background-color: #e3f2fd;
+            color: #1976d2;
+            border-radius: 50%;
+            font-size: 1em;
+            margin-right: 16px;
+            flex-shrink: 0;
+            font-weight: 600;
+        }
+        .step-content {
+            flex: 1;
+            line-height: 1.6;
+        }
+        .calculation-display {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 12px;
+            background-color: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        .calculation-label {
+            font-weight: 500;
+            color: #1e40af;
+        }
+        .calculation-expression {
+            font-family: 'KaTeX_Math', 'Times New Roman', serif;
+            font-size: 1.2em;
+            color: #1e40af;
+            padding: 8px;
+            background-color: #f1f5f9;
+            border-radius: 4px;
+        }
+        .calculation-result {
+            font-family: 'KaTeX_Math', 'Times New Roman', serif;
+            font-size: 1.2em;
+            color: #0369a1;
+            font-weight: 600;
+            padding: 8px;
+            background-color: #f1f5f9;
+            border-radius: 4px;
+        }
+        .inline-equation {
+            font-family: 'KaTeX_Math', 'Times New Roman', serif;
+            color: #1e40af;
+            background-color: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin: 0 2px;
+        }
+        .equation {
+            margin: 16px 0;
+            padding: 12px;
+            background-color: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            font-family: 'KaTeX_Math', 'Times New Roman', serif;
+            font-size: 1.1em;
+        }
+        .variable {
+            color: #1e40af;
+            font-weight: 600;
+        }
+        .value {
+            color: #0369a1;
+        }
+        .answer-content ul {
+            list-style-type: none;
+            padding-left: 0;
+            margin: 12px 0;
+        }
+        .answer-content li {
+            position: relative;
+            padding-left: 24px;
+            margin: 8px 0;
+        }
+        .answer-content li:before {
+            content: '•';
+            position: absolute;
+            left: 8px;
+            color: #6b7280;
+        }
+        /* New styles for the landing page */
+        .hero-section {
+            background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
+            color: white;
+            padding: 4rem 0;
+            margin-bottom: 2rem;
+        }
+        
+        .feature-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+            height: 100%;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .agent-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: #2c5282;
+        }
+        
+        .tool-icon {
+            font-size: 1.5rem;
+            color: #4a5568;
+        }
+        
+        .example-prompt {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .example-prompt:hover {
+            background: #edf2f7;
+            border-color: #cbd5e0;
+        }
+        
+        .architecture-diagram {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+        
+        .disclaimer {
+            background: #fff5f5;
+            border: 1px solid #fed7d7;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            color: #c53030;
+        }
+        
+        @media (max-width: 640px) {
+            .hero-section {
+                padding: 2rem 0;
+            }
+            
+            .feature-card {
+                margin-bottom: 1rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <div class="container mx-auto px-4">
+            <h1 class="text-4xl md:text-5xl font-bold text-center mb-4">
+                Glockholm AI - Multi-Agent Tutor System
+            </h1>
+            <p class="text-xl text-center text-blue-100 mb-8">
+                Advanced Multi-Agent Architecture for Intelligent Subject-Specific Tutoring
+            </p>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Disclaimer -->
+        <div class="disclaimer">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            <strong>Note:</strong> This is an AI-powered system. While we strive for accuracy, please verify critical information from authoritative sources.
+        </div>
+
+        <!-- Architecture Overview -->
+        <div class="architecture-diagram">
+            <h2 class="text-2xl font-bold mb-6 text-center">System Architecture</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Subject Agents -->
+                <div class="feature-card p-6">
+                    <div class="text-center">
+                        <i class="fas fa-robot agent-icon"></i>
+                        <h3 class="text-xl font-semibold mb-2">Specialized Agents</h3>
+                        <p class="text-gray-600">Three dedicated AI agents for Mathematics, Physics, and Chemistry, each trained for domain-specific expertise.</p>
+                    </div>
+                </div>
+                
+                <!-- Auto-Detection -->
+                <div class="feature-card p-6">
+                    <div class="text-center">
+                        <i class="fas fa-magic agent-icon"></i>
+                        <h3 class="text-xl font-semibold mb-2">Intelligent Routing</h3>
+                        <p class="text-gray-600">Advanced query classification automatically routes questions to the appropriate subject agent.</p>
+                    </div>
+                </div>
+                
+                <!-- Tools -->
+                <div class="feature-card p-6">
+                    <div class="text-center">
+                        <i class="fas fa-tools agent-icon"></i>
+                        <h3 class="text-xl font-semibold mb-2">Specialized Tools</h3>
+                        <p class="text-gray-600">Integrated tools including calculators, constant lookups, and more for enhanced problem-solving.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Example Prompts -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Math Examples -->
+            <div class="feature-card p-6">
+                <h3 class="text-xl font-semibold mb-4 flex items-center">
+                    <i class="fas fa-square-root-alt mr-2 text-blue-600"></i>
+                    Mathematics
+                </h3>
+                <div class="space-y-3">
+                    <div class="example-prompt" onclick="usePrompt(this)">
+                        What is the length of the latus-rectum of the ellipse, whose foci are (2,5) and (2,-3) and eccentricity is 0.8?
+                    </div>
+                    <div class="example-prompt" onclick="usePrompt(this)">
+                        What is the area of a square with side length 3?
+                    </div>
+                </div>
+            </div>
+
+            <!-- Physics Examples -->
+            <div class="feature-card p-6">
+                <h3 class="text-xl font-semibold mb-4 flex items-center">
+                    <i class="fas fa-atom mr-2 text-purple-600"></i>
+                    Physics
+                </h3>
+                <div class="space-y-3">
+                    <div class="example-prompt" onclick="usePrompt(this)">
+                        What is Planck's constant?
+                    </div>
+                    <div class="example-prompt" onclick="usePrompt(this)">
+                        Three charges +Q, q, +Q are placed respectively, at distance 0, d/2 and d from the origin, on the x-axis. If the net force experienced by +Q placed at x = 0 is zero, then value of q is?
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chemistry Examples -->
+            <div class="feature-card p-6">
+                <h3 class="text-xl font-semibold mb-4 flex items-center">
+                    <i class="fas fa-flask mr-2 text-green-600"></i>
+                    Chemistry
+                </h3>
+                <div class="space-y-3">
+                    <div class="example-prompt" onclick="usePrompt(this)">
+                        The lanthanide contraction is responsible for the fact that?
+                    </div>
+                    <div class="example-prompt" onclick="usePrompt(this)">
+                        The gas liberated by the electrolysis of Dipotassium succinate solution is?
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Query Input Section -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="mb-6">
+                <p class="text-gray-600 text-center mb-4">
+                    Ask any question about mathematics, physics, or chemistry
+                </p>
+                <div class="flex gap-2">
+                    <input type="text" id="question-input" 
+                           class="flex-1 p-3 border rounded-lg focus:outline-none focus:border-blue-500"
+                           placeholder="Type your question here...">
+                    <button onclick="submitQuestion()" 
+                            id="submit-button"
+                            class="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 focus:outline-none">
+                        Submit
+                    </button>
+                </div>
+            </div>
+            
+            <div id="response" class="response-container">
+                <!-- Response content will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const questionInput = document.getElementById('question-input');
+        const submitButton = document.getElementById('submit-button');
+        const responseDiv = document.getElementById('response');
+        let currentRequest = null;
+        
+        // Get timeout from server config
+        let TIMEOUT_DURATION = 35000; // Default fallback
+        fetch('/api/health')
+            .then(response => response.json())
+            .then(data => {
+                if (data.is_vercel) {
+                    TIMEOUT_DURATION = 8000; // 8 seconds for Vercel
+                }
+            })
+            .catch(() => {
+                console.warn('Could not fetch server config, using default timeout');
+            });
+
+        // Handle Enter key
+        questionInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                submitQuestion();
+            }
+        });
+
+        function showLoading() {
+            responseDiv.style.display = 'block';
+            responseDiv.innerHTML = '<div class="loading">Processing your question...</div>';
+            submitButton.disabled = true;
+        }
+
+        function showError(message, showRetry = true) {
+            responseDiv.style.display = 'block';
+            let html = `
+                <div class="subject-badge error-badge">Error</div>
+                <div class="text-red-600">${message}</div>
+            `;
+            if (showRetry) {
+                html += `
+                    <button class="retry-button" onclick="retryQuestion()">
+                        Try Again
+                    </button>
+                `;
+            }
+            responseDiv.innerHTML = html;
+            submitButton.disabled = false;
+        }
+
+        function retryQuestion() {
+            // Clear any existing request
+            if (currentRequest) {
+                currentRequest.abort();
+                currentRequest = null;
+            }
+            // Small delay before retry to ensure cleanup
+            setTimeout(() => submitQuestion(), 100);
+        }
+
+        async function submitQuestion() {
+            const question = questionInput.value.trim();
+            if (!question) return;
+
+            // Cancel any existing request
+            if (currentRequest) {
+                currentRequest.abort();
+                currentRequest = null;
+            }
+
+            // Create new AbortController for this request
+            const controller = new AbortController();
+            currentRequest = controller;
+
+            // Clear previous response and show loading
+            responseDiv.style.display = 'none';
+            showLoading();
+
+            try {
+                const timeoutId = setTimeout(() => {
+                    controller.abort();
+                    showError("The request is taking longer than expected. Please try again.");
+                }, TIMEOUT_DURATION);
+
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        question: question
+                    }),
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.detail || `HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                displayResponse(data);
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    showError("The request timed out. Please try again.");
+                } else {
+                    console.error('Error:', error);
+                    showError(error.message || "An error occurred while processing your question. Please try again.");
+                }
+            } finally {
+                currentRequest = null;
+                submitButton.disabled = false;
+            }
+        }
+
+        function createCollapsibleSection(title, content, isOpen = false) {
+            const sectionId = 'section-' + Math.random().toString(36).substr(2, 9);
+            return `
+                <div class="collapsible-section">
+                    <div class="collapsible-header" onclick="toggleSection(this)">
+                        <span>${title}</span>
+                        <i class="fas fa-chevron-down chevron ${isOpen ? 'active' : ''}"></i>
+                    </div>
+                    <div class="collapsible-content" style="display: ${isOpen ? 'block' : 'none'}">
+                        ${content}
+                    </div>
+                </div>
+            `;
+        }
+
+        function formatToolResult(tool) {
+            console.log('Formatting tool result:', JSON.stringify(tool, null, 2));
+            if (!tool) {
+                console.log('Tool is null or undefined');
+                return '';
+            }
+            if (!tool.success) {
+                console.log('Tool was not successful');
+                return '';
+            }
+            if (!tool.result) {
+                console.log('Tool has no result');
+                return '';
+            }
+            
+            let toolIcon, toolName, toolContent;
+            
+            // Convert tool type to uppercase for comparison
+            const toolType = tool.tool_type.toUpperCase();
+            
+            if (toolType === 'CONSTANT_LOOKUP') {
+                toolIcon = 'fa-atom';
+                toolName = 'Physics Constant Lookup';
+                const result = tool.result;
+                toolContent = `
+                    <div class="constant-display">
+                        <div class="constant-symbol">${result.symbol}</div>
+                        <div class="constant-value">${result.value} ${result.unit}</div>
+                        <div class="constant-description">${result.description}</div>
+                    </div>
+                `;
+            } else if (toolType === 'CALCULATOR') {
+                console.log('Formatting calculator tool:', {
+                    expression: tool.input_data?.expression,
+                    result: tool.result
+                });
+                toolIcon = 'fa-calculator';
+                toolName = 'Calculator Used';
+                toolContent = `
+                    <div class="calculation-display">
+                        <div class="calculation-label">Calculation:</div>
+                        <div class="calculation-expression">${tool.input_data.expression}</div>
+                        <div class="calculation-result">= ${tool.result}</div>
+                    </div>
+                `;
+            } else {
+                console.log('Unknown tool type:', tool.tool_type);
+                return ''; // Don't display other tool types
+            }
+            
+            const toolHtml = `
+                <div class="tool-badge">
+                    <i class="fas ${toolIcon}"></i>
+                    <span>${toolName}</span>
+                </div>
+                <div class="tool-result">
+                    ${toolContent}
+                </div>
+            `;
+            console.log('Generated tool HTML:', toolHtml);
+            return toolHtml;
+        }
+
+        function formatAnswerContent(answer, subject) {
+            console.log('Formatting answer for subject:', subject);
+            
+            // First, clean up the answer text while preserving section headers
+            let cleanedAnswer = answer
+                // Clean up section headers - preserve the numbering and colons
+                .replace(/\*\*(\d+\.\s+[^:]+):\*\*/g, '$1:')
+                .replace(/\*\*([^:]+):\*\*/g, '$1:')
+                // Clean up step formatting
+                .replace(/\*\s*Step\s+(\d+):/g, 'Step $1:')
+                .replace(/\*\s*Step\s+(\d+)\s*\*/g, 'Step $1:')
+                // Clean up bullet points
+                .replace(/\*\s+/g, '• ')
+                // Remove remaining markdown
+                .replace(/\*\*/g, '')
+                .replace(/\*/g, '')
+                .replace(/`/g, '');
+
+            console.log('Cleaned answer:', cleanedAnswer);
+
+            // Split into sections
+            const sections = [];
+            let currentSection = '';
+            let currentTitle = '';
+            
+            // Split by lines and process each line
+            const lines = cleanedAnswer.split('\n');
+            for (let line of lines) {
+                line = line.trim();
+                if (!line) continue;
+                
+                // Check if this is a section header (now handles both numbered and unnumbered sections)
+                if (line.match(/^[A-Z][^:]+:/) || // Matches "Significance:", "Value in context:", etc.
+                    line.match(/^Relation to the question:/) ||
+                    line.match(/^\d+\.\s+[^:]+:/) || 
+                    line.match(/^Step\s+\d+:/)) {
+                    // Save previous section if exists
+                    if (currentSection) {
+                        const sectionTitle = currentTitle.replace(/^\d+\.\s+/, '').trim();
+                        console.log('Adding section:', { title: sectionTitle, content: currentSection.trim() });
+                        sections.push({
+                            title: sectionTitle || 'Overview',
+                            content: formatSectionContent(currentSection.trim(), sectionTitle),
+                            isCollapsible: shouldBeCollapsible(sectionTitle, subject)
+                        });
+                    }
+                    // Start new section
+                    currentTitle = line;
+                    currentSection = '';
+                } else {
+                    currentSection += line + '\n';
+                }
+            }
+            
+            // Add the last section
+            if (currentSection) {
+                const sectionTitle = currentTitle.replace(/^\d+\.\s+/, '').trim();
+                console.log('Adding final section:', { title: sectionTitle, content: currentSection.trim() });
+                sections.push({
+                    title: sectionTitle || 'Overview',
+                    content: formatSectionContent(currentSection.trim(), sectionTitle),
+                    isCollapsible: shouldBeCollapsible(sectionTitle, subject)
+                });
+            }
+            
+            // If no sections were found, treat the entire answer as the overview section
+            if (sections.length === 0) {
+                sections.push({
+                    title: 'Overview',
+                    content: formatSectionContent(cleanedAnswer),
+                    isCollapsible: false
+                });
+            }
+            
+            console.log('All sections:', sections);
+            
+            // Format sections based on subject
+            let html = '';
+            for (let section of sections) {
+                console.log('Processing section:', section.title, 'collapsible:', section.isCollapsible);
+                if (subject.toLowerCase() === 'math' && section.isCollapsible) {
+                    // For math, make concepts and verification collapsible
+                    html += createCollapsibleSection(section.title, section.content, false);
+                } else {
+                    // For all other subjects or non-collapsible sections, show directly
+                    html += `
+                        <div class="section">
+                            <h3 class="section-title">${section.title}</h3>
+                            ${section.content}
+                        </div>
+                    `;
+                }
+            }
+            
+            return `<div class="answer-content">${html}</div>`;
+        }
+
+        function formatSectionContent(content, title) {
+            console.log('Formatting section content:', { title, content });
+            
+            // Format steps if this is a step-by-step section
+            if (title && title.toLowerCase().includes('step')) {
+                const steps = content.split('\n').filter(line => line.trim());
+                return steps.map((step, index) => {
+                    // Extract step number and content
+                    const stepMatch = step.match(/^Step\s+(\d+):\s*(.*)/);
+                    if (stepMatch) {
+                        return `
+                            <div class="step">
+                                <div class="step-number">${stepMatch[1]}</div>
+                                <div class="step-content">${stepMatch[2]}</div>
+                            </div>
+                        `;
+                    }
+                    return `
+                        <div class="step">
+                            <div class="step-number">${index + 1}</div>
+                            <div class="step-content">${step}</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            // Format lists (bullet points)
+            if (content.includes('•')) {
+                const items = content.split('\n').filter(line => line.trim());
+                return `<ul class="list-disc pl-5">${items.map(item => 
+                    `<li>${item.replace('•', '').trim()}</li>`
+                ).join('')}</ul>`;
+            }
+            
+            // Regular content
+            return `<div class="section-content">${content}</div>`;
+        }
+
+        function shouldBeCollapsible(title, subject) {
+            if (subject.toLowerCase() !== 'math') return false;
+            
+            const lowerTitle = title.toLowerCase();
+            return lowerTitle.includes('mathematical concepts') ||
+                   lowerTitle.includes('verification') ||
+                   lowerTitle.includes('reasoning');
+        }
+
+        // Add styles for collapsible sections
+        const style = document.createElement('style');
+        style.textContent = `
+            .collapsible-section {
+                margin: 12px 0;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                overflow: hidden;
+            }
+            .collapsible-button {
+                width: 100%;
+                padding: 12px 16px;
+                background-color: #f8fafc;
+                border: none;
+                text-align: left;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                font-weight: 500;
+                color: #1e40af;
+            }
+            .collapsible-button:hover {
+                background-color: #f1f5f9;
+            }
+            .collapsible-button i {
+                margin-right: 8px;
+                transition: transform 0.2s;
+            }
+            .collapsible-button.active i {
+                transform: rotate(90deg);
+            }
+            .collapsible-content {
+                padding: 16px;
+                background-color: white;
+                border-top: 1px solid #e5e7eb;
+            }
+            .section {
+                margin: 16px 0;
+            }
+            .section-title {
+                font-size: 1.1em;
+                font-weight: 600;
+                color: #1e40af;
+                margin-bottom: 12px;
+            }
+            .section-content {
+                line-height: 1.6;
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Add toggle function for collapsible sections
+        function toggleSection(button) {
+            button.classList.toggle('active');
+            const content = button.nextElementSibling;
+            if (content.style.display === 'block') {
+                content.style.display = 'none';
+            } else {
+                content.style.display = 'block';
+            }
+        }
+
+        function displayResponse(data) {
+            responseDiv.style.display = 'block';
+            console.log('Full response data:', JSON.stringify(data, null, 2));
+            console.log('Response tools:', JSON.stringify(data.response.tools_used, null, 2));
+            
+            let html = `
+                <div class="subject-badge ${data.subject_identified.toLowerCase()}-badge">
+                    <i class="fas ${getSubjectIcon(data.subject_identified)}"></i>
+                    <span style="margin-left: 8px">${data.subject_identified}</span>
+                </div>
+                <div class="question-text">Q: ${data.question}</div>
+            `;
+
+            // Add tool badges if any tools were used
+            if (data.response.tools_used && data.response.tools_used.length > 0) {
+                console.log('Number of tools:', data.response.tools_used.length);
+                data.response.tools_used.forEach((tool, index) => {
+                    console.log(`Processing tool ${index}:`, JSON.stringify(tool, null, 2));
+                    if (tool.tool_type === 'CALCULATOR') {
+                        console.log('Found calculator tool:', {
+                            success: tool.success,
+                            expression: tool.input_data?.expression,
+                            result: tool.result
+                        });
+                    }
+                    const toolHtml = formatToolResult(tool);
+                    console.log(`Tool ${index} HTML:`, toolHtml);
+                    html += toolHtml;
+                });
+            } else {
+                console.log('No tools were used in the response');
+            }
+
+            // Format and add the answer content, passing the subject
+            html += formatAnswerContent(data.response.answer, data.subject_identified);
+
+            responseDiv.innerHTML = html;
+        }
+
+        function getSubjectIcon(subject) {
+            switch(subject.toLowerCase()) {
+                case 'math': return 'fa-square-root-alt';
+                case 'physics': return 'fa-atom';
+                case 'chemistry': return 'fa-flask';
+                default: return 'fa-question-circle';
+            }
+        }
+
+        // Add new function for example prompts
+        function usePrompt(element) {
+            const prompt = element.textContent.trim();
+            document.getElementById('question-input').value = prompt;
+            // Optional: auto-submit
+            // submitQuestion();
+        }
+
+        // Make the page responsive
+        function handleResize() {
+            const container = document.querySelector('.container');
+            if (window.innerWidth < 640) {
+                container.classList.add('px-2');
+            } else {
+                container.classList.remove('px-2');
+            }
+        }
+
+        window.addEventListener('resize', handleResize);
+        handleResize(); // Initial call
+    </script>
+</body>
+</html>
